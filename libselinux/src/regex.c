@@ -7,6 +7,39 @@
 #include "label_file.h"
 
 #ifdef USE_PCRE2
+#define REGEX_ARCH_SIZE_T PCRE2_SIZE
+#else
+#define REGEX_ARCH_SIZE_T size_t
+#endif
+
+#ifndef __BYTE_ORDER__
+#error __BUTE_ORDER__ not defined
+#endif
+
+char const *regex_arch_string(void) {
+	static char arch_string_buffer[32];
+	static char const *arch_string = NULL;
+	const char *endianess = NULL;
+	if (!arch_string) {
+		const char *endianess = NULL;
+		if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) {
+			endianess = "el";
+		} else if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__) {
+			endianess = "eb";
+		}
+		if (!endianess)
+			return NULL;
+
+		snprintf(arch_string_buffer, sizeof(arch_string_buffer),
+				"%zu-%zu-%s", sizeof(void*),
+				sizeof(REGEX_ARCH_SIZE_T),
+				endianess);
+		arch_string = &arch_string_buffer[0];
+	}
+	return arch_string;
+}
+
+#ifdef USE_PCRE2
 struct regex_data {
 	pcre2_code *regex; /* compiled regular expression */
 	/*

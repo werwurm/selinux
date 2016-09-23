@@ -34,6 +34,16 @@ struct regex_error_data {
 struct mmap_area;
 
 /**
+ * regex_arch_string return a string that represents the pointer width, the
+ * width of what the backend considers a size type, and the endianess of the
+ * system that this library was build for. (e.g. for x86_64: "8-8-el").
+ * This is required when loading stored regular espressions. PCRE2 regular
+ * expressions are not portable across architectures that do not have a
+ * matching arch-string.
+ */
+char const *regex_arch_string(void) hidden;
+
+/**
  * regex_verison returns the version string of the underlying regular
  * regular expressions library. In the case of PCRE it just returns the
  * result of pcre_version(). In the case of PCRE2, the very first time this

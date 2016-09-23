@@ -126,6 +126,9 @@ static int load_mmap(FILE *fp, size_t len, struct selabel_handle *rec,
 	uint32_t i, magic, version;
 	uint32_t entry_len, stem_map_len, regex_array_len;
 	const char *reg_version;
+	const char *reg_arch;
+	char file_reg_arch[32];
+	char reg_arch_matches = 1;
 
 	mmap_area = malloc(sizeof(*mmap_area));
 	if (!mmap_area) {
@@ -159,6 +162,10 @@ static int load_mmap(FILE *fp, size_t len, struct selabel_handle *rec,
 	if (!reg_version)
 		return -1;
 
+	reg_arch = regex_arch_string();
+	if (!reg_arch)
+		return -1;
+
 	if (version >= SELINUX_COMPILED_FCONTEXT_PCRE_VERS) {
 
 		len = strlen(reg_version);
@@ -188,7 +195,42 @@ static int load_mmap(FILE *fp, size_t len, struct selabel_handle *rec,
 			return -1;
 		}
 		free(str_buf);
+
+		if (version >= SELINUX_COMPILED_FCONTEXT_REGEX_ARCH) {
+			len = strlen(reg_arch);
+
+			rc = next_entry(&entry_len, mmap_area, sizeof(uint32_t));
+			if (rc < 0)
+				return -1;
+
+			/* Check arch string lengths */
+			if (len != entry_len) {
+				/*
+				 * Skip the entry and conclude that we have
+				 * a mismatch, which is not fatal.
+				 */
+				next_entry(NULL, mmap_area, entry_len);
+				reg_arch_matches = 0;
+				goto end_arch_check;
+			}
+
+			/* Check if arch string mismatch */
+			str_buf = malloc(entry_len + 1);
+			if (!str_buf)
+				return -1;
+
+			rc = next_entry(str_buf, mmap_area, entry_len);
+			if (rc < 0) {
+				free(str_buf);
+				return -1;
+			}
+
+			str_buf[entry_len] = '\0';
+			reg_arch_matches = strcmp(str_buf, reg_arch) == 0;
+			free(str_buf);
+		}
 	}
+end_arch_check:
 
 	/* allocate the stems_data array */
 	rc = next_entry(&stem_map_len, mmap_area, sizeof(uint32_t));
